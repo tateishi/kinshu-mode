@@ -4,6 +4,7 @@
 
 ;; Author: TATEISHI Tadatoshi <ishio39@gmail.com>
 ;; Maintainer: TATEISHI Tadatoshi <ishio39@gmail.com>
+;; Url: https://github.com/tateishi/kinshu-mode/
 ;; Created: 2021/04/09
 ;; Version: 0.0.1
 
@@ -33,29 +34,49 @@
 (require 'cl-lib)
 (require 'seq)
 
-(defconst kinshu-list
-  '(10000 5000 2000 1000 500 100 50 10 5 1))
+(defgroup kinshu nil
+  "Major mode for editing kinshu files."
+  :group 'text
+  :prefix "kinshu-")
 
-(defconst kinshu-tabs
-  '(0 13 17 21 25 29 33 37 41 45 49))
+(defcustom kinshu-denominations '(10000 5000 2000 1000 500 100 50 10 5 1)
+  "List of denominations used for calculation.
+Each element is a bill/coin value. The order must match the columns."
+  :type '(repeat integer)
+  :group 'kinshu)
 
-(defconst kinshu-header
+(defcustom kinshu-tab-stops '(0 13 17 21 25 29 33 37 41 45 49)
+  "Column stops used by `kinshu-next-tab' and `kinshu-prev-tab'."
+  :type '(repeat integer)
+  :group 'kinshu)
+
+(defcustom kinshu-date-format "%Y-%m-%d"
+  "Date format used by `format-time-string' in `kinshu-add-line'."
+  :type 'string
+  :group 'kinshu)
+
+(defcustom kinshu-line-template "%s   0   0   0   0   0   0   0   0   0   0"
+  "Template for a new kinshu line.
+The first %s is replaced with today's date."
+  :type 'string
+  :group 'kinshu)
+
+(defcustom kinshu-sum-template "   =%8d"
+  "Template appended by `kinshu-sum'."
+  :type 'string
+  :group 'kinshu)
+
+(defcustom kinshu-header-template
   (concat
    "#-------------------------------------------------------------\n"
    "#kinshu    10K  5K  2K  1K 500 100  50  10   5   1         sum\n"
-   "#-------------------------------------------------------------\n"))
-
-(defconst kinshu-line-template
-  "%s   0   0   0   0   0   0   0   0   0   0")
-
-(defconst kinshu-date-template
-  "%Y/%m/%d")
-
-(defconst kinshu-sum-template
-  "   =%8d")
+   "#-------------------------------------------------------------\n")
+  "Header inserted by `kinshu-add-header'."
+  :type 'string
+  :group 'kinshu)
 
 (defun kinshu-amount (count-list)
-  (apply #'+ (cl-mapcar #'* kinshu-list count-list)))
+  (apply #'+ (cl-mapcar #'* kinshu-denominations count-list)))
 
 (defun kinshu-read-counts (from)
   (beginning-of-line)
@@ -139,13 +160,13 @@
   "金種計算のヘッダーを追加する"
   (interactive)
   (goto-char (point-max))
-  (insert kinshu-header))
+  (insert kinshu-header-template))
 
 (defun kinshu-add-line ()
   "金種計算の行を追加する"
   (interactive)
   (goto-char (point-max))
-  (let ((today (format-time-string kinshu-date-template)))
+  (let ((today (format-time-string kinshu-date-format)))
     (insert (format kinshu-line-template today)))
   (beginning-of-line))
 
@@ -153,14 +174,14 @@
   "金種のフォーマットに合わせてカーソルを右に移動する"
   (interactive)
   (let* ((col (current-column))
-         (next (kinshu-next col kinshu-tabs)))
+         (next (kinshu-next col kinshu-tab-stops)))
     (move-to-column next t)))
 
 (defun kinshu-prev-tab ()
   "金種のフォーマットに合わせてカーソルを左に移動する"
   (interactive)
   (let* ((col (current-column))
-         (prev (kinshu-prev col kinshu-tabs)))
+         (prev (kinshu-prev col kinshu-tab-stops)))
     (move-to-column prev t)))
 
 (defface kinshu-font-comment-face
@@ -181,7 +202,7 @@
 
 (defvar kinshu-font-lock-keywords
   `(("^[#].*$" . 'kinshu-font-comment-face)
-    (,(concat "\\([[:digit:]]+/[[:digit:]]+/[[:digit:]]+\\)"
+    (,(concat "\\([[:digit:]]\\{4\\}[/-][[:digit:]]\\{2\\}[/-][[:digit:]]\\{2\\}\\)"
               "[[:blank:]]+\\([[:digit:]]+\\)"
               "[[:blank:]]+\\([[:digit:]]+\\)"
               "[[:blank:]]+\\([[:digit:]]+\\)"
@@ -206,7 +227,7 @@
      (10 'kinshu-font-number-face)
      (11 'kinshu-font-number-face)
      (12 'kinshu-font-sum-face)))
-  "Expressions for highligt in Kinshu mode.")
+  "Expressions for highlight in Kinshu mode.")
 
 (defvar kinshu-mode-syntax-table
   (let ((st (make-syntax-table text-mode-syntax-table)))
