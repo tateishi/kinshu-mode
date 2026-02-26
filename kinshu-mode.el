@@ -122,7 +122,7 @@
   (interactive)
   (save-excursion
     (kinshu-delete-sum)
-    (goto-char (point-max))
+    (end-of-line)
     (let ((amount (kinshu-amount (kinshu-read-counts (current-buffer)))))
       (insert (format kinshu-sum-template amount)))))
 
@@ -163,6 +163,58 @@
          (prev (kinshu-prev col kinshu-tabs)))
     (move-to-column prev t)))
 
+(defface kinshu-font-comment-face
+  `((t :inherit font-lock-comment-face))
+  "Default face for comments.")
+
+(defface kinshu-font-date-face
+  `((t :inherit font-lock-keyword-face))
+  "Default face for date.")
+
+(defface kinshu-font-number-face
+  `((t :inherit font-lock-type-face))
+  "Default face for number.")
+
+(defface kinshu-font-sum-face
+  `((t :inherit font-lock-constant-face :weight bold))
+  "Default face for sum.")
+
+(defvar kinshu-font-lock-keywords
+  `(("^[#].*$" . 'kinshu-font-comment-face)
+    (,(concat "\\([[:digit:]]+/[[:digit:]]+/[[:digit:]]+\\)"
+              "[[:blank:]]+\\([[:digit:]]+\\)"
+              "[[:blank:]]+\\([[:digit:]]+\\)"
+              "[[:blank:]]+\\([[:digit:]]+\\)"
+              "[[:blank:]]+\\([[:digit:]]+\\)"
+              "[[:blank:]]+\\([[:digit:]]+\\)"
+              "[[:blank:]]+\\([[:digit:]]+\\)"
+              "[[:blank:]]+\\([[:digit:]]+\\)"
+              "[[:blank:]]+\\([[:digit:]]+\\)"
+              "[[:blank:]]+\\([[:digit:]]+\\)"
+              "[[:blank:]]+\\([[:digit:]]+\\)"
+              "[[:blank:]]+="
+              "[[:blank:]]+\\([[:digit:]]+\\)")
+     (1 'kinshu-font-date-face)
+     (2 'kinshu-font-number-face)
+     (3 'kinshu-font-number-face)
+     (4 'kinshu-font-number-face)
+     (5 'kinshu-font-number-face)
+     (6 'kinshu-font-number-face)
+     (7 'kinshu-font-number-face)
+     (8 'kinshu-font-number-face)
+     (9 'kinshu-font-number-face)
+     (10 'kinshu-font-number-face)
+     (11 'kinshu-font-number-face)
+     (12 'kinshu-font-sum-face)))
+  "Expressions for highligt in Kinshu mode.")
+
+(defvar kinshu-mode-syntax-table
+  (let ((st (make-syntax-table text-mode-syntax-table)))
+    (modify-syntax-entry ?\# "<" st)
+    (modify-syntax-entry ?\n ">" st)
+    st)
+  "Syntax table in use in `kinshu-mode' buffers.")
+
 (defvar kinshu-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "C-c C-k") #'kinshu-sum)
@@ -183,7 +235,10 @@
 (define-derived-mode kinshu-mode text-mode "Kinshu"
   "Kinshu-mode is a major mode for editing kinshu data.
 
-\\{kinshu-mode-map}")
+\\{kinshu-mode-map}"
+  :syntax-table kinshu-mode-syntax-table
+  (setq font-lock-defaults '(kinshu-font-lock-keywords t nil nil nil))
+  (setq-local comment-start "#"))
 
 (provide 'kinshu-mode)
 
