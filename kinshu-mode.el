@@ -6,7 +6,10 @@
 ;; Maintainer: TATEISHI Tadatoshi <ishio39@gmail.com>
 ;; Url: https://github.com/tateishi/kinshu-mode/
 ;; Created: 2021/04/09
-;; Version: 0.0.1
+;; Version: 0.1.0
+;; Package-Requires: ((emacs "25.1"))
+;; Keywords: utility, finance
+;; URL: https://github.com/tateishi/kinshu-mode/
 
 ;; This file is NOT part of GNU Emacs.
 
