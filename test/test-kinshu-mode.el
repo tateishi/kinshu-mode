@@ -1,8 +1,14 @@
-;;; kinshu-test.el --- Tests for kinshu
+;;; test-kinshu-mode.el --- Tests for kinshu. -*- lexical-binding: t; -*-
 
+;;; Commentary:
+
+;;; Code:
+
+(require 'ert)
 (require 'kinshu-mode)
+
 (ert-deftest amount ()
-  "amount test"
+  "Amount test."
   (should (equal (kinshu-amount '(1)) 10000))
   (should (equal (kinshu-amount '(1 1)) 15000))
   (should (equal (kinshu-amount '(1 1 1)) 17000))
@@ -10,16 +16,16 @@
   )
 
 (ert-deftest move ()
-  (should (= (kinshu-next 0 kinshu-tabs) 13))
-  (should (= (kinshu-next 24 kinshu-tabs) 25))
-  (should (= (kinshu-next 41 kinshu-tabs) 45))
-  (should (= (kinshu-next 50 kinshu-tabs) 50))
-  (should (= (kinshu-prev 0 kinshu-tabs) 0))
-  (should (= (kinshu-prev 50 kinshu-tabs) 49))
-  (should (= (kinshu-prev 49 kinshu-tabs) 45))
-  (should (= (kinshu-prev 29 kinshu-tabs) 25))
-  (should (= (kinshu-prev 80 kinshu-tabs) 49))
+  (should (= (kinshu-next 0 kinshu-tab-stops) 13))
+  (should (= (kinshu-next 24 kinshu-tab-stops) 25))
+  (should (= (kinshu-next 41 kinshu-tab-stops) 45))
+  (should (= (kinshu-next 50 kinshu-tab-stops) 50))
+  (should (= (kinshu-prev 0 kinshu-tab-stops) 0))
+  (should (= (kinshu-prev 50 kinshu-tab-stops) 49))
+  (should (= (kinshu-prev 49 kinshu-tab-stops) 45))
+  (should (= (kinshu-prev 29 kinshu-tab-stops) 25))
+  (should (= (kinshu-prev 80 kinshu-tab-stops) 49))
   )
 
 
-;;; kinshu-test.el ends here
+;;; test-kinshu-mode.el ends here
