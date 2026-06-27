@@ -44,7 +44,7 @@
 
 (defcustom kinshu-denominations '(10000 5000 2000 1000 500 100 50 10 5 1)
   "List of denominations used for calculation.
-Each element is a bill/coin value. The order must match the columns."
+Each element is a bill/coin value.  The order must match the columns."
   :type '(repeat integer)
   :group 'kinshu)
 
@@ -79,9 +79,66 @@ The first %s is replaced with today's date."
   :group 'kinshu)
 
 (defun kinshu-amount (count-list)
+  "Return the total amount calculated from COUNT-LIST.
+
+COUNT-LIST is a list of integers representing how many units of
+each denomination are present.  The function multiplies each
+element of COUNT-LIST with the corresponding element of
+`kinshu-denominations`, then returns the sum of all products."
+
   (apply #'+ (cl-mapcar #'* kinshu-denominations count-list)))
 
+(defun kinshu-parse-string (text)
+  "Parse a string TEXT of the form.
+
+DATE NUM1 NUM2 ... NUMk [= AMOUNT]
+
+Split TEXT by spaces/tabs, interpret the first token as date string.
+Then read numeric tokens that follow.  If a literal \"=\" appears,
+stop reading numbers before it and read a numeric token after \"=\"
+as amount.  Return a plist containing:
+
+  :date   - the date string
+  :nums   - list of numeric values
+  :amount - a numeric value after \"=\" (or nil if none)"
+
+  (let* ((tokens (split-string text "[ \t]+" t))
+         date nums amount)
+    (unless tokens
+      (error "No tokens"))
+    (setq date (car tokens))
+    (setq tokens (cdr tokens))
+
+    (while (and tokens
+                (< (length nums) 10)
+                (not (string= (car tokens) "=")))
+      (let ((n (string-to-number (car tokens))))
+        (when (and (= n 0) (not (string-equal (car tokens) "0")))
+          (error "Invalid number: %S" (car tokens)))
+        (push n nums)
+        (setq tokens (cdr tokens))))
+    (setq nums (reverse nums))
+
+    (when (and tokens (string= "=" (car tokens)))
+      (setq tokens (cdr tokens))
+      (let ((n (string-to-number (car tokens))))
+        (unless (numberp n)
+          (error "Invalid number after '=': %S" (car tokens)))
+        (setq amount n)))
+    (list :date date
+          :nums nums
+          :amount amount)))
+
+
 (defun kinshu-read-counts (from)
+  "Read a sequence of numbers from the current line using FROM.
+
+Move to the beginning of the current line, then read the first
+object from FROM (typically a buffer or marker).  After that,
+continue reading objects on the same line while skipping spaces
+and tabs.  Stop when reaching the end of the line.  Return the
+collected objects as a list in their original order."
+
   (beginning-of-line)
   (read from)
   (let ((res ()))

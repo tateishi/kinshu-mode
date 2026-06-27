@@ -5,7 +5,43 @@
 ;;; Code:
 
 (require 'ert)
-(require 'kinshu-mode)
+
+(ert-deftest kinshu-parse-string-test-1 ()
+  "日付+数値10個+=+数値."
+  (should
+   (equal (kinshu-parse-string "2024-01-01 1 2 3 4 5 6 7 8 9 10 = 100")
+          '(:date "2024-01-01"
+                  :nums (1 2 3 4 5 6 7 8 9 10)
+                  :amount 100))))
+
+(ert-deftest kinshu-parse-string-test-2 ()
+  "数値が10個未満（= なし）."
+  (should
+   (equal (kinshu-parse-string "2024-01-01 10 20 30")
+          '(:date "2024-01-01"
+                  :nums (10 20 30)
+                  :amount nil))))
+
+(ert-deftest kinshu-parse-string-test-3 ()
+  "= が途中にあり、extra が 1 個."
+  (should
+   (equal (kinshu-parse-string "2024-01-01 5 6 7 = 999")
+          '(:date "2024-01-01"
+                  :nums (5 6 7)
+                  :amount 999))))
+
+(ert-deftest kinshu-parse-string-test-4 ()
+  "数値がちょうど10個で = がない."
+  (
+   should
+   (equal (kinshu-parse-string "2024-01-01 1 2 3 4 5 6 7 8 9 10")
+          '(:date "2024-01-01"
+                  :nums (1 2 3 4 5 6 7 8 9 10)
+                  :amount nil))))
+
+(ert-deftest kinshu-parse-string-test-5 ()
+  "不正な数値が混入した場合はエラー."
+  (should-error (kinshu-parse-string "2024-01-01 1 2 X 4")))
 
 (ert-deftest amount ()
   "Amount test."
