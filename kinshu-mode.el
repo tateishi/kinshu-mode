@@ -133,6 +133,30 @@ Return a plist containing:
           :nums nums
           :amount amount)))
 
+(defun kinshu-render-record (record)
+  "Render a kinshu record RECORD as a formatted string.
+
+RECORD is a plist containing at least the keys :date, :nums, and
+optionally :amount.  The date string is printed first, followed by
+the numeric fields in :nums, each right-aligned in a 4-character
+column.  If :amount is present, it is appended after an '=' and
+formatted in an 8-character field.
+
+Return the resulting string."
+
+  (let* ((date (plist-get record :date))
+         (nums (plist-get record :nums))
+         (amount (plist-get record :amount))
+         (nums-string (let ((out ""))
+                        (dolist (n nums)
+                          (setq out (concat out (format "%4d" n))))
+                        out))
+         output)
+    (setq output (format "%s%s" date nums-string))
+    (if amount
+        (setq output (concat output (format "   =%8d" amount))))
+    output))
+
 
 (defun kinshu-read-counts (from)
   "Read a sequence of numbers from the current line using FROM.

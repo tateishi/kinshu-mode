@@ -43,6 +43,31 @@
   "不正な数値が混入した場合はエラー."
   (should-error (kinshu-parse-string "2024-01-01 1 2 X 4")))
 
+(ert-deftest kinshu-render-record/basic ()
+  "Render a record with date and numeric fields."
+  (let* ((record '(:date "2026-01-01"
+                         :nums (1 23 456)
+                         :amount nil))
+         (result (kinshu-render-record record)))
+    (should (equal result "2026-01-01   1  23 456"))))
+
+(ert-deftest kinshu-render-record/with-amount ()
+  "Render a record including an amount field."
+  (let* ((record '(:date "2026-06-24"
+                         :nums (1 0 0 3 0 0 1 6 0 5)
+                         :amount 13115))
+         (result (kinshu-render-record record)))
+    (should (equal result
+                   "2026-06-24   1   0   0   3   0   0   1   6   0   5   =   13115"))))
+
+(ert-deftest kinshu-render-record/empty-nums ()
+  "Render a record with no numeric fields."
+  (let* ((record '(:date "2026-01-01"
+                         :nums ()
+                         :amount nil))
+         (result (kinshu-render-record record)))
+    (should (equal result "2026-01-01"))))
+
 (ert-deftest amount ()
   "Amount test."
   (should (equal (kinshu-amount '(1)) 10000))
