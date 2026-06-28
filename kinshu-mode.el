@@ -89,18 +89,22 @@ element of COUNT-LIST with the corresponding element of
   (apply #'+ (cl-mapcar #'* kinshu-denominations count-list)))
 
 (defun kinshu-parse-string (text)
-  "Parse a string TEXT of the form.
+  "Parse TEXT as a kinshu record and return a plist describing its fields.
 
-DATE NUM1 NUM2 ... NUMk [= AMOUNT]
+The expected format of TEXT is:
 
-Split TEXT by spaces/tabs, interpret the first token as date string.
-Then read numeric tokens that follow.  If a literal \"=\" appears,
-stop reading numbers before it and read a numeric token after \"=\"
-as amount.  Return a plist containing:
+    DATE NUM1 NUM2 ... NUMk [= AMOUNT]
 
-  :date   - the date string
-  :nums   - list of numeric values
-  :amount - a numeric value after \"=\" (or nil if none)"
+TEXT is split by spaces or tabs.  The first token is interpreted as
+the date string.  Up to ten numeric tokens are then read.  If a
+literal \"=\" appears, numeric parsing stops and the token following
+\"=\" is interpreted as AMOUNT.
+
+Return a plist containing:
+
+  :date    - the date string
+  :nums    - list of numeric values
+  :amount  - the numeric value after \"=\" (or nil if none)"
 
   (let* ((tokens (split-string text "[ \t]+" t))
          date nums amount)
