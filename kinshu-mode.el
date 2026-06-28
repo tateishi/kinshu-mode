@@ -157,6 +157,111 @@ Return the resulting string."
         (setq output (concat output (format "   =%8d" amount))))
     output))
 
+(defun kinshu-scan-fields (text)
+  "Scan TEXT character-by-character and return a list of field descriptors.
+
+Each field descriptor has the form:
+
+    (KIND START END INDEX)
+
+where:
+  KIND   – field category, one of:
+           'date  : initial date field at the beginning of TEXT
+           'nums  : numeric fields following the date
+           'other : fields appearing after '=' or any non-numeric tail
+  START  – index in TEXT where the field begins
+  END    – index in TEXT where the field ends (inclusive)
+  INDEX  – 1-based counter for fields within the same KIND group.
+           This counter resets to 1 whenever KIND transitions
+           (date → nums, nums → other).
+
+Field splitting rules:
+
+  • A run of spaces terminates the current field:
+      - push (KIND START (i-1) INDEX)
+      - START becomes the position of the first space
+      - skip all consecutive spaces
+      - INDEX increments
+      - if KIND was 'date, switch to 'nums and reset INDEX to 1
+
+  • '=' terminates the current field:
+      - push (KIND START (i-1) INDEX)
+      - START becomes the position of '='
+      - INDEX increments
+      - if KIND was 'nums, switch to 'other and reset INDEX to 1
+
+  • Other characters do not change KIND; scanning continues normally.
+
+Because START is set at the first space and consecutive spaces are skipped
+before continuing, a field may consist of leading spaces followed by digits,
+e.g. \"   12\" is treated as a single 'nums field.
+
+At the end of TEXT, the final field (KIND START (len-1) INDEX) is pushed.
+
+If TEXT is empty or contains only whitespace, return:
+
+    ((other 0 (length TEXT) 1))
+
+Example:
+  \"2026-01-01   12  34  56=   999\"
+  ⇒
+  ((date 0 9 1)
+   (nums 10 14 1)   ; \"   12\"
+   (nums 15 18 2)   ; \"  34\"
+   (nums 19 22 3)   ; \"  56\"
+   (other 23 23 1)  ; \"=\"
+   (other 24 29 2)) ; \"   999\""
+
+  (let ((fields ())
+        (len (length text))
+        (kind 'date)
+        (start 0)
+        (i 0)
+        (index 1))
+    (if (= (length (string-trim text)) 0)
+        `((other 0 ,(length text) ,index))
+      (while (< i len)
+        (let ((c (aref text i)))
+          (cond ((eq c ?\s)
+                 (push (list kind start (1- i) index) fields)
+                 (setq start i)
+                 (setq index (1+ index))
+                 (setq kind (if (eq kind 'date)
+                                (progn
+                                  (setq index 1)
+                                  'nums)
+                              kind))
+                 (while (and (< i len) (eq (aref text i) ?\s))
+                   (setq i (1+ i))))
+                ((eq c ?\=)
+                 (push (list kind start (1- i) index) fields)
+                 (setq start i)
+                 (setq index (1+ index))
+                 (setq kind (if (eq kind 'nums)
+                                (progn
+                                  (setq index 1)
+                                  'other)
+                              kind))))
+          (setq i (1+ i))))
+      (push (list kind start (1- len) index) fields)
+      (reverse fields))))
+
+(defun kinshu-element-at-offet (text offset)
+  "Return the element type at OFFSET within TEXT.
+
+OFFSET is interpreted as a column position in a rendered kinshu line.
+Positions 0–9 correspond to the date field.  Positions starting at 10
+are divided into 4‑character numeric columns; the function returns
+'(nums INDEX) for the numeric field at that column.  If OFFSET does not
+fall within either the date field or one of the numeric fields, return
+'(other)."
+
+
+  (if (< offset 10) '(date)
+    (let* ((off (- offset 10))
+           (count (truncate (/ off 4))))
+      (if (< count 10) (list 'nums count)
+        '(other)))))
 
 (defun kinshu-read-counts (from)
   "Read a sequence of numbers from the current line using FROM.
