@@ -246,7 +246,32 @@ Example:
       (push (list kind start (1- len) index) fields)
       (reverse fields))))
 
-(defun kinshu-element-at-offet (text offset)
+
+(defun kinshu-field-contains-offset (field offset)
+  "Return non-nil if FIELD covers OFFSET.
+
+FIELD is a descriptor of the form (KIND START END INDEX).
+This predicate returns t when OFFSET satisfies START <= OFFSET <= END,
+otherwise nil."
+
+  (cl-destructuring-bind (kind start end index) field
+    (and (<= start offset) (<= offset end))))
+
+
+(defun kinshu-element-at-offset (text offset)
+  "Return the field descriptor in TEXT that covers OFFSET.
+
+TEXT is scanned by `kinshu-scan-fields` into a list of field descriptors.
+This function returns the first field whose START ≤ OFFSET ≤ END.
+If no such field exists, return nil."
+
+  (let* ((fields (kinshu-scan-fields text)))
+    (seq-find
+     (lambda (field) (kinshu-field-contains-offset field offset))
+     fields)))
+
+
+(defun kinshu-element-at-offset-old (text offset)
   "Return the element type at OFFSET within TEXT.
 
 OFFSET is interpreted as a column position in a rendered kinshu line.
