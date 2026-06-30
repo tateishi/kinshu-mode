@@ -270,23 +270,16 @@ If no such field exists, return nil."
      (lambda (field) (kinshu-field-contains-offset field offset))
      fields)))
 
+(defun kinshu-extract-nums (text)
+  "Parse TEXT with `kinshu-parse-string` and return its numeric values.
 
-(defun kinshu-element-at-offset-old (text offset)
-  "Return the element type at OFFSET within TEXT.
+This function returns the list stored under the :nums key in the plist
+produced by `kinshu-parse-string`.  The result is a list of numbers
+extracted from the numeric fields in TEXT, or nil if TEXT contains none."
 
-OFFSET is interpreted as a column position in a rendered kinshu line.
-Positions 0–9 correspond to the date field.  Positions starting at 10
-are divided into 4‑character numeric columns; the function returns
-'(nums INDEX) for the numeric field at that column.  If OFFSET does not
-fall within either the date field or one of the numeric fields, return
-'(other)."
+  (let ((parsed (kinshu-parse-string text)))
+    (plist-get parsed :nums)))
 
-
-  (if (< offset 10) '(date)
-    (let* ((off (- offset 10))
-           (count (truncate (/ off 4))))
-      (if (< count 10) (list 'nums count)
-        '(other)))))
 
 (defun kinshu-read-counts (from)
   "Read a sequence of numbers from the current line using FROM.
