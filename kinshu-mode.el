@@ -37,6 +37,10 @@
 (require 'cl-lib)
 (require 'seq)
 
+;; ----------------------------------------------------------------
+;; CUSTOM
+;; ----------------------------------------------------------------
+
 (defgroup kinshu nil
   "Major mode for editing kinshu files."
   :group 'text
@@ -77,6 +81,10 @@ The first %s is replaced with today's date."
   "Header inserted by `kinshu-add-header'."
   :type 'string
   :group 'kinshu)
+
+;; ----------------------------------------------------------------
+;; CODE
+;; ----------------------------------------------------------------
 
 (defun kinshu-amount (count-list)
   "Return the total amount calculated from COUNT-LIST.
@@ -165,104 +173,204 @@ Each field descriptor has the form:
     (KIND START END INDEX)
 
 where:
-  KIND   – field category, one of:
-           'date  : initial date field at the beginning of TEXT
-           'nums  : numeric fields following the date
-           'other : fields appearing after '=' or any non-numeric tail
+  KIND   – field category (a :symbol), one of:
+           :date  – initial date field at the beginning of TEXT
+           :nums  – numeric fields following the date
+           :other – fields appearing after '=' or any non-numeric tail
   START  – index in TEXT where the field begins
-  END    – index in TEXT where the field ends (inclusive)
-  INDEX  – 1-based counter for fields within the same KIND group.
-           This counter resets to 1 whenever KIND transitions
-           (date → nums, nums → other).
+  END    – index in TEXT where the field ends (exclusive, i.e. end-column+1)
+  INDEX  – 0-based counter for fields within the same KIND group.
+           This counter resets to 0 whenever KIND transitions
+           (:date → :nums, :nums → :other).
 
 Field splitting rules:
 
   • A run of spaces terminates the current field:
-      - push (KIND START (i-1) INDEX)
+      - push (KIND START i INDEX)
       - START becomes the position of the first space
       - skip all consecutive spaces
       - INDEX increments
-      - if KIND was 'date, switch to 'nums and reset INDEX to 1
+      - if KIND was :date, switch to :nums and reset INDEX to 0
 
   • '=' terminates the current field:
-      - push (KIND START (i-1) INDEX)
+      - push (KIND START i INDEX)
       - START becomes the position of '='
       - INDEX increments
-      - if KIND was 'nums, switch to 'other and reset INDEX to 1
+      - if KIND was :nums, switch to :other and reset INDEX to 0
 
   • Other characters do not change KIND; scanning continues normally.
 
 Because START is set at the first space and consecutive spaces are skipped
 before continuing, a field may consist of leading spaces followed by digits,
-e.g. \"   12\" is treated as a single 'nums field.
+e.g. \"   12\" is treated as a single :nums field.
 
-At the end of TEXT, the final field (KIND START (len-1) INDEX) is pushed.
+At the end of TEXT, the final field (KIND START len INDEX) is pushed.
 
 If TEXT is empty or contains only whitespace, return:
 
-    ((other 0 (length TEXT) 1))
+    ((:other 0 (length TEXT) 0))
 
 Example:
   \"2026-01-01   12  34  56=   999\"
-  ⇒
-  ((date 0 9 1)
-   (nums 10 14 1)   ; \"   12\"
-   (nums 15 18 2)   ; \"  34\"
-   (nums 19 22 3)   ; \"  56\"
-   (other 23 23 1)  ; \"=\"
-   (other 24 29 2)) ; \"   999\""
+  =>
+  ((:date 0 10 0)
+   (:nums 10 15 0)   ; \"   12\"
+   (:nums 15 19 1)   ; \"  34\"
+   (:nums 19 23 2)   ; \"  56\"
+   (:other 23 24 0)  ; \"=\"
+   (:other 24 30 1)) ; \"   999\""
 
   (let ((fields ())
         (len (length text))
-        (kind 'date)
+        (kind :date)
         (start 0)
         (i 0)
-        (index 1))
+        (index 0))
+
     (if (= (length (string-trim text)) 0)
-        `((other 0 ,(length text) ,index))
+        ()
       (while (< i len)
         (let ((c (aref text i)))
           (cond ((eq c ?\s)
-                 (push (list kind start (1- i) index) fields)
+                 (push (list kind start i index) fields)
                  (setq start i)
                  (setq index (1+ index))
-                 (setq kind (if (eq kind 'date)
+                 (setq kind (if (eq kind :date)
                                 (progn
-                                  (setq index 1)
-                                  'nums)
+                                  (setq index 0)
+                                  :nums)
                               kind))
                  (while (and (< i len) (eq (aref text i) ?\s))
                    (setq i (1+ i))))
                 ((eq c ?\=)
-                 (push (list kind start (1- i) index) fields)
+                 (push (list kind start i index) fields)
                  (setq start i)
                  (setq index (1+ index))
-                 (setq kind (if (eq kind 'nums)
+                 (setq kind (if (eq kind :nums)
                                 (progn
-                                  (setq index 1)
-                                  'other)
+                                  (setq index 0)
+                                  :other)
                               kind))))
           (setq i (1+ i))))
-      (push (list kind start (1- len) index) fields)
+      (push (list kind start len index) fields)
       (reverse fields))))
 
+(defun kinshu-scan-fields-spaces (text)
+  "Scan TEXT and split it into fields of type :date, :nums, and :other.
+
+Field boundaries are determined by runs of
+spaces, and END positions are exclusive (END = index of first character
+*after* the field).
+
+Returned value is a list of field descriptors:
+
+    (KIND START END INDEX)
+
+where:
+  KIND   – one of the symbols:
+           :date  – first non-space run at the beginning
+           :nums  – numeric-like runs after the date
+           :other – fields after '=' or any non-numeric tail
+  START  – index where the field begins
+  END    – index where the field ends (exclusive)
+  INDEX  – 0-based counter within each KIND group
+
+Field rules:
+
+  • :date phase:
+      - skip leading spaces
+      - START = first non-space
+      - scan until next space
+      - push ( :date START END 0 )
+      - switch to :nums
+
+  • :nums phase:
+      - START = (i - 1) so that leading spaces belong to the field
+      - skip spaces
+      - if next char is '=', switch KIND to :other and reset INDEX
+      - scan until next space
+      - push ( KIND START END INDEX )
+      - increment INDEX
+
+  • :other phase:
+      - same scanning as :nums but KIND stays :other
+
+END is always the index of the first character *after* the field.
+
+If TEXT becomes empty after trimming, return ().
+
+Example:
+  \"2026-01-01   12  34  56=   999\"
+  =>
+  ((:date 0 10 0)
+   (:nums 9 15 0)    ; \"   12\"
+   (:nums 14 19 1)   ; \"  34\"
+   (:nums 18 23 2)   ; \"  56\"
+   (:other 22 23 0)  ; \"=\"
+   (:other 22 28 1)) ; \"   999\""
+
+  (let ((text (string-trim-right text))
+        (fields ())
+        (len (length text))
+        (kind :date)
+        (start 0)
+        (i 0)
+        (index 0))
+    (if (= (length text) 0)
+        ()
+      (while (< i len)
+        (cond ((eq kind :date)
+               (while (and (< i len) (eq (aref text i) ?\s)) (setq i (1+ i)))
+               (setq start i)
+               (while (and (< i len) (not (eq (aref text i) ?\s))) (setq i (1+ i)))
+               (push (list kind start i index) fields)
+               (setq kind :nums)
+               (setq index 0))
+
+              ((eq kind :nums)
+               (setq start i)
+               (while (and (< i len) (eq (aref text i) ?\s)) (setq i (1+ i)))
+               (cond ((and (< i len) (eq (aref text i) ?=))
+                      (setq i (1+ i))
+                      (setq kind :other)
+                      (setq index 0)
+                      (push (list kind start i index) fields))
+                     (t
+                      (while (and (< i len)
+                                  (not (eq (aref text i) ?\s))
+                                  (not (eq (aref text i) ?=)))
+                        (setq i (1+ i)))
+                      (push (list kind start i index) fields)
+                      (if (and (< i len) (eq (aref text i) ?=))
+                          (progn
+                            (setq kind :other)
+                            (setq index 0))
+                        (setq index (1+ index))))))
+
+              (t
+               (setq start i)
+               (while (and (< i len) (eq (aref text i) ?\s)) (setq i (1+ i)))
+               (while (and (< i len) (not (eq (aref text i) ?\s))) (setq i (1+ i)))
+               (push (list kind start  i index) fields)
+               (setq index (1+ index)))))
+      (reverse fields))))
 
 (defun kinshu-field-contains-offset (field offset)
   "Return non-nil if FIELD covers OFFSET.
 
 FIELD is a descriptor of the form (KIND START END INDEX).
-This predicate returns t when OFFSET satisfies START <= OFFSET <= END,
+This predicate returns t when OFFSET satisfies START <= OFFSET < END,
 otherwise nil."
 
   (cl-destructuring-bind (kind start end index) field
-    (and (<= start offset) (<= offset end))))
+    (and (<= start offset) (< offset end))))
 
 
 (defun kinshu-element-at-offset (text offset)
   "Return the field descriptor in TEXT that covers OFFSET.
 
 TEXT is scanned by `kinshu-scan-fields` into a list of field descriptors.
-This function returns the first field whose START ≤ OFFSET ≤ END.
+This function returns the first field whose START <= OFFSET < END.
 If no such field exists, return nil."
 
   (let* ((fields (kinshu-scan-fields text)))
@@ -279,6 +387,54 @@ extracted from the numeric fields in TEXT, or nil if TEXT contains none."
 
   (let ((parsed (kinshu-parse-string text)))
     (plist-get parsed :nums)))
+
+(defun kinshu-replace-date (record date)
+  "Return a new RECORD plist with its :date field replaced by DATE.
+
+This function performs a non-destructive update: the original RECORD
+plist is not modified.  A shallow copy of RECORD is created and its
+:date value is updated using `plist-put`, then returned."
+
+  (let ((rec (copy-sequence record)))
+    (plist-put rec :date date)))
+
+
+(defun kinshu-replace-nth-num (record n num)
+  "Return a new RECORD plist with the Nth numeric value replaced by NUM.
+
+This function performs a non-destructive update: the original RECORD
+plist is not modified.  A shallow copy of RECORD is created, and the
+list stored under :nums is also copied before its Nth element is
+replaced.  The updated plist is returned."
+
+  (let* ((rec (copy-sequence record))
+         (nums (plist-get rec :nums))
+         (new-nums (let ((cp (copy-sequence nums)))
+                     (setcar (nthcdr n cp) num)
+                     cp)))
+    (plist-put rec :nums new-nums)))
+
+(defun kinshu-replace-amount (record amount)
+  "Return a new RECORD plist with its :amount field replaced by AMOUNT.
+
+This function performs a non-destructive update: the original RECORD
+plist is not modified.  A shallow copy of RECORD is created and its
+:amount value is updated using `plist-put`, then returned."
+
+  (let ((rec (copy-sequence record)))
+    (plist-put rec :amount amount)))
+
+
+(defun kinshu-ex ()
+  ""
+  (interactive)
+  (let* ((bol (line-beginning-position))
+         (eol (line-end-position))
+         (offset (- (point) bol))
+         (text (buffer-substring-no-properties bol eol))
+         (parsed (kinshu-parse-string text))
+         (records (kinshu-scan-fields text)))
+    (message "%d %d %S %S" offset (point) parsed records)))
 
 
 (defun kinshu-read-counts (from)

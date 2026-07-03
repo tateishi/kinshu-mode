@@ -7,11 +7,11 @@
 (require 'ert)
 
 (ert-deftest kinshu-field-contains-offset/basic ()
-  (should (kinshu-field-contains-offset '(nums 10 14 1) 10))
-  (should (kinshu-field-contains-offset '(nums 10 14 1) 12))
-  (should (kinshu-field-contains-offset '(nums 10 14 1) 14))
-  (should-not (kinshu-field-contains-offset '(nums 10 14 1) 9))
-  (should-not (kinshu-field-contains-offset '(nums 10 14 1) 15)))
+  (should (kinshu-field-contains-offset '(:nums 10 15 1) 10))
+  (should (kinshu-field-contains-offset '(:nums 10 15 1) 12))
+  (should (kinshu-field-contains-offset '(:nums 10 15 1) 14))
+  (should-not (kinshu-field-contains-offset '(:nums 10 15 1) 9))
+  (should-not (kinshu-field-contains-offset '(:nums 10 15 1) 15)))
 
 (ert-deftest kinshu-element-at-offset/basic ()
   (let* ((text "2026-01-01   12  34  56=   999")
