@@ -234,12 +234,12 @@ Example:
    (:other 23 24 0)  ; \"=\"
    (:other 24 30 1)) ; \"   999\""
 
-  (let ((fields ())
-        (len (length text))
-        (kind :date)
-        (start 0)
-        (i 0)
-        (index 0))
+  (let* ((fields ())
+         (len (length text))
+         (kind :date)
+         (start 0)
+         (i 0)
+         (index 0))
 
     (if (= (length (string-trim text)) 0)
         ()
@@ -323,13 +323,13 @@ Example:
    (:other 22 23 0)  ; \"=\"
    (:other 22 28 1)) ; \"   999\""
 
-  (let ((text (string-trim-right text))
-        (fields ())
-        (len (length text))
-        (kind :date)
-        (start 0)
-        (i 0)
-        (index 0))
+  (let* ((text (string-trim-right text))
+         (fields ())
+         (len (length text))
+         (kind :date)
+         (start 0)
+         (i 0)
+         (index 0))
     (if (= (length text) 0)
         ()
       (while (< i len)
