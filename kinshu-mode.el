@@ -96,6 +96,25 @@ The first %s is replaced with today's date."
   ;; (list :type kind :start start :end end :index index)
   (list kind start end index))
 
+(defun ks--match-at-pos (regex text pos)
+  "Return non-nil if REGEX matches TEXT starting exactly at position POS.
+
+This function runs `string-match` beginning at POS and returns t only when the
+match begins at POS itself. It is useful for scanners that need strict
+position-based matching (i.e., REGEX must match at the current cursor offset).
+
+Arguments:
+  REGEX  – a regular expression (string) or rx-compiled pattern.
+  TEXT   – the target string.
+  POS    – index in TEXT where matching must begin.
+
+Return:
+  t      – REGEX matches TEXT at POS (match-beginning is POS)
+  nil    – no match, or match begins after POS."
+
+  (let ((m (string-match regex text pos)))
+    (and m (= m pos))))
+
 (defun kinshu-amount (count-list)
   "Return the total amount calculated from COUNT-LIST.
 
@@ -368,6 +387,63 @@ Example:
                (push (ks--make-field kind start i index) fields)
                (setq index (1+ index)))))
       (reverse fields))))
+
+(defun kinshu-scan-fields-regex (text)
+  "Scan TEXT using regex-based field detection and return fields.
+
+This function trims trailing spaces from TEXT and then scans it from left to
+right, matching specific regex patterns at the current position POS.  Each match
+produces a field descriptor of the form:
+
+    (KIND START END INDEX)
+
+where:
+  KIND   – one of:
+           :date   – first non-blank run
+           :nums   – blank* + digit+ runs
+           :equal  – blank* + '='
+           :amount – blank* + non-blank+ runs
+  START  – index where the field begins
+  END    – index where the field ends (exclusive)
+  INDEX  – 0-based counter within each KIND group
+
+Matching rules (in order):
+  1. :date   – (rx (* blank) (+ (not blank)))
+  2. :nums*  – (rx (* blank) (+ digit))
+  3. :equal  – (rx (* blank) \"=\")
+  4. :amount – (rx (* blank) (+ (not blank)))
+
+Each match advances POS to (match-end 0). When no further pattern matches,
+scanning stops.
+
+Return the list of fields in the order they appear."
+
+  (let* ((text (string-trim-right text))
+         (fields ())
+         (len (length text))
+         (pos 0)
+         (index 0))
+    (when (ks--match-at-pos (rx (* blank) (+ (not blank))) text pos)
+      (push (ks--make-field :date (match-beginning 0) (match-end 0) 0) fields)
+      (setq pos (match-end 0)))
+    (setq index 0)
+    (while (ks--match-at-pos (rx (* blank) (+ digit)) text pos)
+      (push (ks--make-field :nums (match-beginning 0) (match-end 0) index) fields)
+      (setq pos (match-end 0))
+      (setq index (1+ index)))
+    (setq index 0)
+    (when (ks--match-at-pos (rx (* blank) "=") text pos)
+      (push (ks--make-field :equal (match-beginning 0) (match-end 0) index) fields)
+      (setq pos (match-end 0))
+      (setq index (1+ index)))
+    (setq index 0)
+    (while (ks--match-at-pos (rx (* blank) (+ (not blank))) text pos)
+      (push (ks--make-field :amount (match-beginning 0) (match-end 0) index) fields)
+      (setq pos (match-end 0))
+      (setq index (1+ index)))
+
+    (reverse fields)))
+
 
 (defun kinshu-field-contains-offset (field offset)
   "Return non-nil if FIELD covers OFFSET.
