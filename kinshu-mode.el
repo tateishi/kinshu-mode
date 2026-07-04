@@ -86,6 +86,16 @@ The first %s is replaced with today's date."
 ;; CODE
 ;; ----------------------------------------------------------------
 
+;; ----------------------------------------------------------------
+;; PRIVATE
+;; ----------------------------------------------------------------
+
+(defun ks--make-field (kind start end index)
+  ""
+
+  ;; (list :type kind :start start :end end :index index)
+  (list kind start end index))
+
 (defun kinshu-amount (count-list)
   "Return the total amount calculated from COUNT-LIST.
 
@@ -95,6 +105,10 @@ element of COUNT-LIST with the corresponding element of
 `kinshu-denominations`, then returns the sum of all products."
 
   (apply #'+ (cl-mapcar #'* kinshu-denominations count-list)))
+
+;; ----------------------------------------------------------------
+;; PUBLIC
+;; ----------------------------------------------------------------
 
 (defun kinshu-parse-string (text)
   "Parse TEXT as a kinshu record and return a plist describing its fields.
@@ -232,7 +246,7 @@ Example:
       (while (< i len)
         (let ((c (aref text i)))
           (cond ((eq c ?\s)
-                 (push (list kind start i index) fields)
+                 (push (ks--make-field kind start i index) fields)
                  (setq start i)
                  (setq index (1+ index))
                  (setq kind (if (eq kind :date)
@@ -243,7 +257,7 @@ Example:
                  (while (and (< i len) (eq (aref text i) ?\s))
                    (setq i (1+ i))))
                 ((eq c ?\=)
-                 (push (list kind start i index) fields)
+                 (push (ks--make-field kind start i index) fields)
                  (setq start i)
                  (setq index (1+ index))
                  (setq kind (if (eq kind :nums)
@@ -252,7 +266,7 @@ Example:
                                   :other)
                               kind))))
           (setq i (1+ i))))
-      (push (list kind start len index) fields)
+      (push (ks--make-field kind start len index) fields)
       (reverse fields))))
 
 (defun kinshu-scan-fields-spaces (text)
@@ -323,7 +337,7 @@ Example:
                (while (and (< i len) (eq (aref text i) ?\s)) (setq i (1+ i)))
                (setq start i)
                (while (and (< i len) (not (eq (aref text i) ?\s))) (setq i (1+ i)))
-               (push (list kind start i index) fields)
+               (push (ks--make-field kind start i index) fields)
                (setq kind :nums)
                (setq index 0))
 
@@ -334,13 +348,13 @@ Example:
                       (setq i (1+ i))
                       (setq kind :other)
                       (setq index 0)
-                      (push (list kind start i index) fields))
+                      (push (ks--make-field kind start i index) fields))
                      (t
                       (while (and (< i len)
                                   (not (eq (aref text i) ?\s))
                                   (not (eq (aref text i) ?=)))
                         (setq i (1+ i)))
-                      (push (list kind start i index) fields)
+                      (push (ks--make-field kind start i index) fields)
                       (if (and (< i len) (eq (aref text i) ?=))
                           (progn
                             (setq kind :other)
@@ -351,7 +365,7 @@ Example:
                (setq start i)
                (while (and (< i len) (eq (aref text i) ?\s)) (setq i (1+ i)))
                (while (and (< i len) (not (eq (aref text i) ?\s))) (setq i (1+ i)))
-               (push (list kind start  i index) fields)
+               (push (ks--make-field kind start i index) fields)
                (setq index (1+ index)))))
       (reverse fields))))
 
