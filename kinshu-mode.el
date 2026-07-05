@@ -545,7 +545,7 @@ collected objects as a list in their original order."
     (reverse res)))
 
 ;; ----------------------------------------------------------------
-;; REFORMAT
+;; EDITING
 ;; ----------------------------------------------------------------
 
 (defun kinshu-format (text)
