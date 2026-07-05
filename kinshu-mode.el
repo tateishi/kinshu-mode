@@ -544,6 +544,28 @@ collected objects as a list in their original order."
       (skip-chars-forward " \t"))
     (reverse res)))
 
+;; ----------------------------------------------------------------
+;; REFORMAT
+;; ----------------------------------------------------------------
+
+(defun kinshu-format (text)
+  "Parse TEXT as a kinshu record and return its formatted string.
+
+TEXT must contain a date, up to ten numeric fields, and an optional
+amount after \"=\".  The string is parsed by `kinshu-parse-string`
+into a plist record, which is then rendered into a fixed-width
+formatted line by `kinshu-render-record`.
+
+Return the formatted string."
+
+  (let* ((record (kinshu-parse-string text)))
+    (kinshu-render-record record)))
+
+
+;; ----------------------------------------------------------------
+;; OLD
+;; ----------------------------------------------------------------
+
 (defun kinshu-delete-sum ()
   (end-of-line)
   (while (and (not (bolp)) (not (eq (char-after) ?=))) (backward-char))
